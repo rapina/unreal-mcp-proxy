@@ -10,7 +10,7 @@
   "files": ["dist", "skills", "README.md", "LICENSE"],
   "scripts": {
     "build": "tsc -p tsconfig.json && node viewer/build.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p viewer/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p viewer/tsconfig.json && tsc -p tsconfig.test.json",
     "test": "npm run build && node --test \"test/*.test.ts\"",
     "start": "npm run build && node dist/cli.js",
     "prepublishOnly": "npm run typecheck && npm test"
