@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { SessionStore } from "../dist/session-store.js";
-import { loadSinks, closeSinks } from "../dist/sinks.js";
+import { loadSinks, closeSinks, type SinkSpec } from "../dist/sinks.js";
 import type { ProxyConfig } from "../dist/config.js";
 
-const config = (baseDir: string, sinks: string[]): ProxyConfig => ({
+const config = (baseDir: string, sinks: SinkSpec[]): ProxyConfig => ({
   listenHost: "127.0.0.1", listenPort: 35100, upstreamUrl: "http://127.0.0.1:35000/mcp",
   dataDir: baseDir, webBaseUrl: "http://observer.test",
   redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 },
@@ -42,6 +42,26 @@ test("a config-listed sink receives every event in order and closes on shutdown"
 
   const lines = (await readFile(path.join(dir, "sink-out.jsonl"), "utf8")).trim().split("\n");
   assert.deepEqual(lines, ["mcp_request_started", "mcp_request_completed", "CLOSED"]); // unsubscribed after close
+});
+
+test("sink options from the config entry are injected into the factory", async () => {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ump-sink-options-"));
+  const outPath = path.join(dir, "options-out.json").replaceAll("\\", "\\\\");
+  await writeFile(path.join(dir, "options-sink.mjs"), `
+    import { writeFileSync } from "node:fs";
+    export default function createSink({ options }) {
+      writeFileSync("${outPath}", JSON.stringify(options));
+      return { onEvent() {} };
+    }
+  `, "utf8");
+  const store = new SessionStore(dir, "http://observer.test");
+  await store.initialize();
+  const sinks = await loadSinks(store, config(dir, [
+    { module: "./options-sink.mjs", options: { url: "https://collector.internal", token: "t-1", batchSize: 50 } }
+  ]), () => {});
+  const injected = JSON.parse(await readFile(path.join(dir, "options-out.json"), "utf8"));
+  assert.deepEqual(injected, { url: "https://collector.internal", token: "t-1", batchSize: 50 });
+  await closeSinks(sinks);
 });
 
 test("a sink that throws per event never breaks recording", async () => {

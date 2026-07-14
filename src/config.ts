@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { RedactionConfig } from "./redaction.js";
+import type { SinkSpec } from "./sinks.js";
 
 export interface ProxyConfig {
   listenHost: string;
@@ -9,8 +10,8 @@ export interface ProxyConfig {
   dataDir: string;
   webBaseUrl: string;
   redaction: RedactionConfig;
-  /** Event sink modules (docs: README "Event sinks"). Relative paths resolve against baseDir. */
-  sinks: string[];
+  /** Event sinks (docs: README "Event sinks"): a module path/specifier, or { module, options }. */
+  sinks: SinkSpec[];
   /** Directory sink paths resolve against: the config file's directory, or cwd. */
   baseDir: string;
 }

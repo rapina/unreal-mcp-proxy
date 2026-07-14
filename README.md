@@ -138,24 +138,32 @@ Environment variables (or a JSON file via `UNREAL_MCP_PROXY_CONFIG`):
 ## Event sinks (central monitoring)
 
 Recording is local-first, but every event can also be forwarded elsewhere - a team
-server, a log shipper, a queue - through **sinks**. A sink is an ES module listed in
-the config; the proxy loads it at startup and feeds it every recorded event:
+server, a log shipper, a queue - through **sinks**. A sink is an ES module the proxy
+loads at startup and feeds every recorded event. Both the module and its settings are
+injected from the config - nothing is hardcoded:
 
 ```json
-{ "sinks": ["./team-sink.mjs"] }
+{
+  "sinks": [
+    { "module": "./team-sink.mjs", "options": { "url": "https://collector.internal/api/v1/events", "token": "..." } }
+  ]
+}
 ```
 
 ```js
 // team-sink.mjs - forward events to a central collector, resilient to its downtime
-export default function createSink({ config, log }) {
+export default function createSink({ config, options, log }) {
   const queue = [];
   const timer = setInterval(async () => {
     if (!queue.length) return;
     const batch = queue.splice(0, 100);
     try {
-      await fetch("https://collector.internal/api/v1/events", {
+      await fetch(options.url, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(options.token ? { authorization: `Bearer ${options.token}` } : {})
+        },
         body: JSON.stringify({ events: batch })
       });
     } catch {
@@ -176,8 +184,13 @@ Sink contract:
   swallowed per event). A sink that fails to **load** fails startup - misconfigured
   monitoring should be visible.
 - `close()` (optional) runs on shutdown.
-- Relative sink paths resolve against the config file's directory (or cwd without one).
-  `UNREAL_MCP_PROXY_SINKS` (comma-separated) works too.
+- A sink entry is either a plain module string or `{ module, options }`. `options` is
+  passed to the factory verbatim - put collector URLs, tokens, and batch settings there,
+  not in the sink code.
+- `module` accepts relative paths (resolved against the config file's directory),
+  absolute paths, or **bare npm specifiers** - so a team can publish its sink as a
+  private package and inject it: `{ "module": "@myteam/collector-sink", "options": {...} }`.
+  `UNREAL_MCP_PROXY_SINKS` (comma-separated module specifiers) works too.
 - Writing one in TypeScript? `import type { SinkFactory } from "unreal-mcp-proxy"` -
   the package ships a library entry with all types.
 

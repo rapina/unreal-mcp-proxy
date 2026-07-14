@@ -7,9 +7,17 @@ import type { SessionEvent } from "./types.js";
 /**
  * Event sinks: forward recorded events somewhere else (a team server, a message queue,
  * a log shipper) without touching the proxy core. A sink is an ES module listed in the
- * config (`sinks: ["./my-sink.mjs"]`); its default export is a factory:
+ * config, either as a plain path or with injected options:
  *
- *   export default function createSink({ config, log }) {
+ *   "sinks": [
+ *     "./my-sink.mjs",
+ *     { "module": "@myteam/collector-sink", "options": { "url": "https://...", "token": "..." } }
+ *   ]
+ *
+ * `module` may be a relative path (resolved against the config file's directory), an
+ * absolute path, or a bare npm specifier. The default export is a factory:
+ *
+ *   export default function createSink({ config, options, log }) {
  *     return {
  *       onEvent(event) { ... },          // awaited; errors are swallowed per-event
  *       async close() { ... }            // optional; called on shutdown
@@ -21,8 +29,12 @@ import type { SessionEvent } from "./types.js";
  * pipeline should be visible, not silent.
  */
 
+export type SinkSpec = string | { module: string; options?: unknown };
+
 export interface SinkContext {
   config: ProxyConfig;
+  /** The `options` value from this sink's config entry (undefined for plain-path entries). */
+  options: unknown;
   log: (message: string) => void;
 }
 
@@ -39,22 +51,31 @@ export interface AttachedSink {
   unsubscribe: () => void;
 }
 
+function resolveSpecifier(module: string, baseDir: string): string {
+  if (module.startsWith("./") || module.startsWith("../")) {
+    return pathToFileURL(path.resolve(baseDir, module)).href;
+  }
+  if (path.isAbsolute(module)) return pathToFileURL(module).href;
+  return module; // bare specifier: an npm package (e.g. a team-published sink)
+}
+
 export async function loadSinks(store: SessionStore, config: ProxyConfig, log: (message: string) => void): Promise<AttachedSink[]> {
   const attached: AttachedSink[] = [];
-  for (const modulePath of config.sinks) {
-    const resolved = path.isAbsolute(modulePath) ? modulePath : path.resolve(config.baseDir, modulePath);
+  for (const spec of config.sinks) {
+    const { module, options } = typeof spec === "string" ? { module: spec, options: undefined } : spec;
+    const specifier = resolveSpecifier(module, config.baseDir);
     let factory: SinkFactory;
     try {
-      const module = await import(pathToFileURL(resolved).href) as { default?: SinkFactory };
-      if (typeof module.default !== "function") throw new Error("default export is not a sink factory function");
-      factory = module.default;
+      const loaded = await import(specifier) as { default?: SinkFactory };
+      if (typeof loaded.default !== "function") throw new Error("default export is not a sink factory function");
+      factory = loaded.default;
     } catch (error) {
-      throw new Error(`failed to load sink "${modulePath}": ${(error as Error).message}`);
+      throw new Error(`failed to load sink "${module}": ${(error as Error).message}`);
     }
-    const sink = await factory({ config, log });
+    const sink = await factory({ config, options, log });
     const unsubscribe = store.subscribe((event) => sink.onEvent(event));
-    attached.push({ modulePath: resolved, sink, unsubscribe });
-    log(`sink attached: ${resolved}`);
+    attached.push({ modulePath: module, sink, unsubscribe });
+    log(`sink attached: ${module}`);
   }
   return attached;
 }
