@@ -183,7 +183,7 @@ test("event sinks attached via subscribe are awaited and cannot break recording"
   store.subscribe(() => { throw new Error("bad sink"); });
   const event = await store.append("custom_event", { callId: "c1" });
   assert.equal(event.source, "custom-source");
-  assert.deepEqual(event.identity, { user: "yhj" });
+  assert.deepEqual(event.identity, { user: "someone" });
   assert.ok(seen.includes("custom_event"));
   assert.deepEqual((await store.readEvents()).at(-1)?.type, "custom_event");
 });
