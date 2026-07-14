@@ -27,6 +27,16 @@ the official debugging story is an output-log filter. This fills that gap.
 - Zero runtime dependencies. Secrets in headers/bodies are redacted before anything is
   written to disk.
 
+![Live session view: thread timeline, tool flow graph, and call list from a real Unreal Editor session](docs/screenshot-session.png)
+
+*A real session against a live UE 5.8 editor. Failed calls break the thread and outline
+their graph nodes; the `A1` badge marks a call carrying an agent annotation.*
+
+![Call detail: an agent annotation on a real schema failure, with the unwrapped request and the raw schema error](docs/screenshot-call-detail.png)
+
+*The failure loop in action: `find_actors` failed against the real schema, the agent
+recorded the diagnosis, and `similar-failures` will recall it in every future session.*
+
 ## How it fits together
 
 Epic's Unreal MCP server is not a separate program - **it runs inside the Unreal Editor
