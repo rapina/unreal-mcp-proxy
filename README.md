@@ -27,34 +27,67 @@ the official debugging story is an output-log filter. This fills that gap.
 - Zero runtime dependencies. Secrets in headers/bodies are redacted before anything is
   written to disk.
 
-## Quick start
+## How it fits together
 
-Start the Unreal Editor with its MCP server (UE 5.8+):
+Epic's Unreal MCP server is not a separate program - **it runs inside the Unreal Editor
+process** and listens over HTTP (default port 35000). This proxy is a separate,
+long-running local process that sits in front of it. Your agent's `.mcp.json` entry is
+just a URL, so "installing" the proxy means pointing that URL at the proxy's port
+instead of the editor's:
 
 ```text
-UnrealEditor.exe <project> -ModelContextProtocolStartServer
+agent (.mcp.json: :35100) ──HTTP──▶ unreal-mcp-proxy (:35100, you run this)
+                                        │ records to data/sessions/*.jsonl
+                                        ▼ HTTP
+                                    Unreal Editor's built-in MCP server (:35000)
 ```
 
-Run the proxy in front of it:
+Because their lifecycles are independent, the proxy (and its observation session)
+survives editor restarts, and calls made while the editor is down are recorded as
+failures instead of vanishing. Only the *viewer* needs no server - `viewer.html` works
+from a double-click. The proxy itself must be running to record.
 
-```bash
-npx unreal-mcp-proxy
-# unreal-mcp-proxy listening: http://127.0.0.1:35100/mcp -> http://127.0.0.1:35000/mcp
-# session: http://127.0.0.1:35100/sessions/<session-id>
-```
+## Prerequisites
 
-Point your agent at the proxy instead of the editor (`.mcp.json`):
+- **Unreal Engine 5.8+ with the Unreal MCP server enabled** - this proxy does not
+  install or launch it. Follow [Epic's Unreal MCP documentation](https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor),
+  or start the editor with:
 
-```json
-{
-  "mcpServers": {
-    "unreal-mcp": { "type": "http", "url": "http://127.0.0.1:35100/mcp" }
-  }
-}
-```
+  ```text
+  UnrealEditor.exe <project> -ModelContextProtocolStartServer
+  ```
 
-That's it. Open the session URL to watch calls live, or open `viewer.html` and drop a
-`data/sessions/*.jsonl` file to inspect a recording offline.
+- **Node.js 20+** for the proxy.
+- An MCP client already talking to Unreal MCP (Claude Code, Cursor, MCP Inspector, ...).
+
+## Quick start
+
+1. Run the proxy (keep it running - a separate terminal, or register it as a
+   service/startup task; it is safe to leave up across editor restarts):
+
+   ```bash
+   npx unreal-mcp-proxy
+   # unreal-mcp-proxy listening: http://127.0.0.1:35100/mcp -> http://127.0.0.1:35000/mcp
+   # session: http://127.0.0.1:35100/sessions/<session-id>
+   ```
+
+2. **Change the port in your agent's `.mcp.json`** from the editor's (35000) to the
+   proxy's (35100). If you already had Unreal MCP configured, this is the only edit:
+
+   ```json
+   {
+     "mcpServers": {
+       "unreal-mcp": { "type": "http", "url": "http://127.0.0.1:35100/mcp" }
+     }
+   }
+   ```
+
+3. Work as usual. Open the session URL to watch calls live, or open `viewer.html` and
+   drop a `data/sessions/*.jsonl` file to inspect a recording offline - the viewer
+   needs no server at all.
+
+If your editor's MCP server runs on a non-default port, set
+`UNREAL_MCP_UPSTREAM_URL=http://127.0.0.1:<port>/mcp`.
 
 ## Configuration
 
