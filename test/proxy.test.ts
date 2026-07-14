@@ -176,13 +176,13 @@ test("ends the downstream response at the final SSE result without waiting for k
 
 test("event sinks attached via subscribe are awaited and cannot break recording", async () => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-sink-"));
-  const store = new SessionStore(dataDir, "http://observer.test", { source: "henneth", identity: { user: "yhj" } });
+  const store = new SessionStore(dataDir, "http://observer.test", { source: "custom-source", identity: { user: "someone" } });
   await store.initialize();
   const seen: string[] = [];
   store.subscribe(async (event) => { seen.push(event.type); });
   store.subscribe(() => { throw new Error("bad sink"); });
   const event = await store.append("custom_event", { callId: "c1" });
-  assert.equal(event.source, "henneth");
+  assert.equal(event.source, "custom-source");
   assert.deepEqual(event.identity, { user: "yhj" });
   assert.ok(seen.includes("custom_event"));
   assert.deepEqual((await store.readEvents()).at(-1)?.type, "custom_event");

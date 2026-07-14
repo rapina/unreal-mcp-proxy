@@ -1,7 +1,7 @@
 {
   "name": "unreal-mcp-proxy",
   "version": "0.1.0",
-  "description": "Session recorder, offline flight viewer, and agent skillset for Epic's Unreal MCP (UE 5.8+). Codename: Henneth.",
+  "description": "Session recorder, offline flight viewer, and agent skillset for Epic's Unreal MCP (UE 5.8+).",
   "type": "module",
   "license": "MIT",
   "author": "HyunJin Yoo",

@@ -3,7 +3,7 @@
 **Flight recorder for [Epic's Unreal MCP](https://dev.epicgames.com/documentation/unreal-engine/unreal-mcp-in-unreal-editor) (UE 5.8+).**
 A transparent local proxy that records every MCP call your AI agent makes to the Unreal
 Editor, an offline single-file viewer to inspect sessions, and a skill that lets the agent
-query its own history. Codename: *Henneth*.
+query its own history.
 
 Unreal Engine 5.8 ships an MCP server inside the editor, so agents like Claude Code and
 Cursor can drive it. What it doesn't ship is any way to see what actually happened:
