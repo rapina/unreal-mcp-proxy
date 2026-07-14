@@ -89,6 +89,29 @@ from a double-click. The proxy itself must be running to record.
 If your editor's MCP server runs on a non-default port, set
 `UNREAL_MCP_UPSTREAM_URL=http://127.0.0.1:<port>/mcp`.
 
+### Auto-start (no separate terminal)
+
+Don't want to run step 1 by hand every time? Register the proxy as a **stdio** server
+instead - your MCP client then starts it automatically whenever a session connects:
+
+```json
+{
+  "mcpServers": {
+    "unreal-mcp": {
+      "command": "npx",
+      "args": ["unreal-mcp-proxy", "--stdio"]
+    }
+  }
+}
+```
+
+In this mode the spawned process is a thin shim: it checks whether the proxy daemon is
+already running on the configured port, **starts it (detached) if not**, and bridges
+stdio to it. The daemon - and your observation session, live viewer, and sinks - keeps
+running after the client session ends, and every concurrent client shares the same
+recorder. Configure it with the same `UNREAL_MCP_PROXY_*` environment variables (set
+them in the `env` field of the entry if needed).
+
 ## Configuration
 
 Environment variables (or a JSON file via `UNREAL_MCP_PROXY_CONFIG`):

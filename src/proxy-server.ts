@@ -226,6 +226,23 @@ export function createProxyServer(config: ProxyConfig, store: SessionStore, opti
     }
     if (pathname !== "/mcp") return sendJson(response, 404, { error: "not_found" });
 
+    // GET /mcp is the streamable-HTTP notification channel, not a call - pipe it without recording.
+    if (request.method === "GET" || request.method === "DELETE") {
+      const passthrough = http.request(upstream, {
+        method: request.method,
+        headers: { ...request.headers, host: upstream.host }
+      }, (upstreamResponse) => {
+        response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+        upstreamResponse.pipe(response);
+      });
+      passthrough.on("error", (error) => {
+        if (!response.headersSent) sendJson(response, 502, { error: "upstream_unavailable", message: error.message });
+        else response.destroy(error);
+      });
+      request.pipe(passthrough);
+      return;
+    }
+
     // ---- transparent MCP forwarding with recording ----
     const callId = randomUUID();
     const started = performance.now();

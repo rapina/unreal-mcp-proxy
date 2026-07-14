@@ -5,8 +5,15 @@ import { loadConfig } from "./config.js";
 import { SessionStore } from "./session-store.js";
 import { createProxyServer } from "./proxy-server.js";
 import { loadSinks, closeSinks } from "./sinks.js";
+import { runStdioBridge } from "./stdio-bridge.js";
 
 const config = await loadConfig();
+
+// stdio mode: MCP clients spawn this per session; it ensures the HTTP daemon and bridges stdio to it.
+if (process.argv.includes("--stdio")) {
+  await runStdioBridge(config);
+  process.exit(0);
+}
 const store = new SessionStore(config.dataDir, config.webBaseUrl);
 await store.initialize();
 const sinks = await loadSinks(store, config, (message) => console.log(message));
