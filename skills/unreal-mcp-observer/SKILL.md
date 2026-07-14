@@ -1,6 +1,6 @@
 ---
 name: unreal-mcp-observer
-description: Query your own Unreal MCP call history recorded by unreal-mcp-proxy. Use when an Unreal MCP tool call fails (check for past similar failures and their fixes first), when a call seems unusually slow, or when the user asks what happened in an Unreal editor automation session. After diagnosing a failure, record the conclusion as an annotation so future sessions can recall it.
+description: Query and operate the Unreal MCP session recorder (unreal-mcp-proxy). Use when an Unreal MCP tool call fails (check for past similar failures and their fixes first), when a call seems unusually slow, when the user asks what happened in an Unreal editor automation session, or when you need to share a deep link to a specific call, check recorder status, or start a fresh observation session. After diagnosing a failure, record the conclusion as an annotation so future sessions can recall it.
 ---
 
 # Unreal MCP Observer
@@ -54,10 +54,27 @@ Set `UNREAL_MCP_PROXY_DATA_DIR` if the proxy's data directory is not `./data`
    Annotations appear in the session viewer next to the call, and are returned by
    `similar-failures` forever after. This is the memory loop: record once, recall always.
 
+5. **Reporting a finding to the user?** Hand them a deep link instead of describing the
+   call - they will see the exact request/response and your annotation in the viewer:
+
+   ```bash
+   node scripts/query.mjs link <callId>
+   ```
+
+6. **Starting a distinct piece of work** (and the user asked for a fresh recording)?
+
+   ```bash
+   node scripts/query.mjs clear
+   ```
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| `status` | Proxy health, active session + URL, and how many sessions/calls/failures are recorded |
+| `sessions [--limit N]` | Recorded sessions with call/failure counts and viewer URLs, newest first |
+| `link <callId>` | Deep link for one call - share it with a human (callId prefix is enough) |
+| `clear` | Roll over to a new observation session (history is kept; requires the proxy running) |
 | `recent-failures [--limit N]` | Latest failed calls with error text, across all recorded sessions |
 | `similar-failures <text> [--limit N]` | Past failures matching an error message (paths/ids/numbers are masked before matching) + their annotations |
 | `call-detail <callId>` | One call with full request/response bodies (callId prefix is enough) |

@@ -99,6 +99,49 @@ test("call-detail resolves a callId prefix to the full call with bodies", async 
   assert.ok(detail.response);
 });
 
+test("sessions lists recordings with counts, link resolves a call to a deep link", async () => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-skill-"));
+  await writeFixture(dataDir);
+  const sessions = await query(dataDir, ["sessions"]) as Array<Record<string, unknown>>;
+  assert.equal(sessions.length, 1);
+  assert.equal(sessions[0]!.calls, 2);
+  assert.equal(sessions[0]!.failures, 1);
+  assert.match(sessions[0]!.url as string, /\/sessions\/11111111/);
+
+  const link = await query(dataDir, ["link", "aaaaaaaa-0000-0000-0000-000000000002"]) as { url: string; tool: string };
+  assert.equal(link.tool, "save_assets");
+  assert.match(link.url, /\/sessions\/11111111-1111-1111-1111-111111111111\?call=aaaaaaaa-0000-0000-0000-000000000002$/);
+});
+
+test("status reports recorder reachability and recorded history, clear rolls the session", async (t) => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-skill-live2-"));
+  const store = new SessionStore(dataDir, "http://observer.test");
+  await store.initialize();
+  const proxy = createProxyServer({
+    listenHost: "127.0.0.1", listenPort: 0, upstreamUrl: "http://127.0.0.1:1/mcp",
+    dataDir, webBaseUrl: "http://observer.test",
+    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 }
+  }, store);
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", () => resolve()));
+  const port = (proxy.address() as { port: number }).port;
+  t.after(() => proxy.close());
+  const proxyUrl = `http://127.0.0.1:${port}`;
+
+  const status = await query(dataDir, ["status"], proxyUrl) as {
+    proxy: { ok: boolean; session: { id: string } }; recorded: { sessions: number };
+  };
+  assert.equal(status.proxy.ok, true);
+  assert.equal(status.proxy.session.id, store.session!.id);
+
+  const before = store.session!.id;
+  const cleared = await query(dataDir, ["clear"], proxyUrl) as { previous: { id: string }; current: { id: string } };
+  assert.equal(cleared.previous.id, before);
+  assert.notEqual(cleared.current.id, before);
+
+  const down = await query(dataDir, ["status"], "http://127.0.0.1:1") as { proxy: { ok: boolean } };
+  assert.equal(down.proxy.ok, false); // degrades gracefully when the proxy is not running
+});
+
 test("annotate posts to the running proxy and the annotation is recalled by similar-failures", async (t) => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-skill-live-"));
   const store = new SessionStore(dataDir, "http://observer.test");

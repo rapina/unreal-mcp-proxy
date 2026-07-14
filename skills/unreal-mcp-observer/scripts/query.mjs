@@ -157,6 +157,52 @@ switch (command) {
       }));
     break;
   }
+  case "status": {
+    // Proxy health + active session + how much history is on disk.
+    let proxy = null;
+    try { proxy = await (await fetch(`${proxyUrl}/health`)).json(); } catch { /* proxy down */ }
+    let recorded = { sessions: 0, calls: 0, failures: 0 };
+    try {
+      const calls = buildCalls(await loadSessions());
+      recorded = {
+        sessions: new Set(calls.map((call) => call.sessionId)).size,
+        calls: calls.length,
+        failures: calls.filter((call) => call.error).length
+      };
+    } catch { /* no data dir yet */ }
+    out({ proxy: proxy ?? { ok: false, error: `proxy not reachable at ${proxyUrl}` }, recorded, dataDir });
+    break;
+  }
+  case "sessions": {
+    const sessions = await loadSessions();
+    out(sessions.map(({ sessionId, events }) => {
+      const calls = buildCalls([{ sessionId, events }]);
+      return {
+        sessionId,
+        startedAt: events[0]?.timestamp ?? null,
+        lastEventAt: events.at(-1)?.timestamp ?? null,
+        calls: calls.length,
+        failures: calls.filter((call) => call.error).length,
+        url: `${proxyUrl}/sessions/${sessionId}`
+      };
+    }).sort((a, b) => new Date(b.lastEventAt ?? 0) - new Date(a.lastEventAt ?? 0)).slice(0, limit));
+    break;
+  }
+  case "link": {
+    // Deep link for a call - hand it to a human, they see the same call in the viewer.
+    const prefix = positional[0];
+    if (!prefix) fail("usage: link <callId>");
+    const call = buildCalls(await loadSessions()).find((item) => item.callId.startsWith(prefix));
+    if (!call) { out({ error: "not_found" }); break; }
+    out({ callId: call.callId, tool: call.tool, url: `${proxyUrl}/sessions/${call.sessionId}?call=${call.callId}` });
+    break;
+  }
+  case "clear": {
+    // Start a new observation session (history is kept on disk).
+    const response = await fetch(`${proxyUrl}/api/session/clear`, { method: "POST" });
+    out(await response.json());
+    break;
+  }
   case "annotate": {
     const callId = positional[0];
     if (!callId || !flags.title || !flags.summary) {
@@ -175,5 +221,5 @@ switch (command) {
     break;
   }
   default:
-    fail("usage: query.mjs <recent-failures|similar-failures|call-detail|tool-stats|annotate> [args] [--limit N]");
+    fail("usage: query.mjs <status|sessions|link|clear|recent-failures|similar-failures|call-detail|tool-stats|annotate> [args] [--limit N]");
 }
