@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unreal-mcp-proxy viewer</title>
+<style>/*__STYLE__*/</style>
+</head>
+<body>
+<header>
+  <div class="brand">UNREAL MCP PROXY</div>
+  <div class="hdr-right" id="hdr-mode"></div>
+</header>
+<main>
+  <div id="drop-stage" hidden>
+    <div class="dropzone">
+      <div class="dz-title">DROP A SESSION .JSONL</div>
+      <div class="dz-sub">data/sessions/&lt;session-id&gt;.jsonl · or click to browse</div>
+      <input type="file" id="file-input" accept=".jsonl,.json" hidden>
+    </div>
+  </div>
+  <div id="session-stage" hidden>
+    <div class="curstat idle" id="curstat"></div>
+    <div class="meta-line" id="meta"></div>
+    <section class="panel">
+      <div class="wlabel"><span>THREAD</span><span class="cnt" id="thread-cnt"></span></div>
+      <div class="thread-line" id="thread"></div>
+    </section>
+    <section class="panel">
+      <div class="wlabel"><span>GRAPH</span><span class="cnt" id="graph-meta"></span></div>
+      <div class="graph-bar"><button class="btn-ghost" id="graph-play">PLAY</button></div>
+      <div class="graph" id="graph"></div>
+    </section>
+    <div class="cols">
+      <section class="panel">
+        <div class="wlabel"><span>CALLS</span><span class="cnt" id="calls-cnt"></span></div>
+        <ul class="rows" id="calls"></ul>
+        <div class="empty" id="calls-empty" hidden>NO CALLS</div>
+      </section>
+      <aside class="col-side">
+        <section class="panel" id="detail-panel">
+          <div class="wlabel"><span>CALL</span><span class="cnt" id="detail-id"></span></div>
+          <div id="detail"><div class="empty">SELECT A KNOT</div></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+</main>
+<script>/*__SCRIPT__*/</script>
+</body>
+</html>

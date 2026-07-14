@@ -1,0 +1,25 @@
+{
+  "name": "unreal-mcp-proxy",
+  "version": "0.1.0",
+  "description": "Session recorder, offline flight viewer, and agent skillset for Epic's Unreal MCP (UE 5.8+). Codename: Henneth.",
+  "type": "module",
+  "license": "MIT",
+  "author": "HyunJin Yoo",
+  "repository": { "type": "git", "url": "git+https://github.com/rapina/unreal-mcp-proxy.git" },
+  "bin": { "unreal-mcp-proxy": "dist/cli.js" },
+  "files": ["dist", "skills", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node viewer/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p viewer/tsconfig.json",
+    "test": "npm run build && node --test \"test/*.test.ts\"",
+    "start": "npm run build && node dist/cli.js",
+    "prepublishOnly": "npm run typecheck && npm test"
+  },
+  "engines": { "node": ">=20" },
+  "keywords": ["unreal", "unreal-engine", "ue5", "mcp", "model-context-protocol", "proxy", "observability", "session-recording", "claude", "ai-agent"],
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.0"
+  }
+}
