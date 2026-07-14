@@ -69,6 +69,52 @@ Environment variables (or a JSON file via `UNREAL_MCP_PROXY_CONFIG`):
 
 `POST /api/session/clear` starts a new observation session (history is kept).
 
+## Event sinks (central monitoring)
+
+Recording is local-first, but every event can also be forwarded elsewhere - a team
+server, a log shipper, a queue - through **sinks**. A sink is an ES module listed in
+the config; the proxy loads it at startup and feeds it every recorded event:
+
+```json
+{ "sinks": ["./team-sink.mjs"] }
+```
+
+```js
+// team-sink.mjs - forward events to a central collector, resilient to its downtime
+export default function createSink({ config, log }) {
+  const queue = [];
+  const timer = setInterval(async () => {
+    if (!queue.length) return;
+    const batch = queue.splice(0, 100);
+    try {
+      await fetch("https://collector.internal/api/v1/events", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ events: batch })
+      });
+    } catch {
+      queue.unshift(...batch); // collector down: keep and retry next tick
+    }
+  }, 5000);
+  return {
+    onEvent(event) { queue.push(event); },
+    close() { clearInterval(timer); }
+  };
+}
+```
+
+Sink contract:
+
+- `onEvent(event)` is awaited inside the recording write chain, so a durable sink can
+  persist events in order. A sink that **throws never breaks recording** (errors are
+  swallowed per event). A sink that fails to **load** fails startup - misconfigured
+  monitoring should be visible.
+- `close()` (optional) runs on shutdown.
+- Relative sink paths resolve against the config file's directory (or cwd without one).
+  `UNREAL_MCP_PROXY_SINKS` (comma-separated) works too.
+- Writing one in TypeScript? `import type { SinkFactory } from "unreal-mcp-proxy"` -
+  the package ships a library entry with all types.
+
 ## Agent skill
 
 Copy (or symlink) `skills/unreal-mcp-observer/` into your agent's skill directory

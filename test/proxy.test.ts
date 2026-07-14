@@ -18,7 +18,8 @@ const baseConfig = (upstreamPort = 1): ProxyConfig => ({
   listenHost: "127.0.0.1", listenPort: 0,
   upstreamUrl: `http://127.0.0.1:${upstreamPort}/mcp`,
   dataDir: "", webBaseUrl: "http://observer.test",
-  redaction: { headers: ["authorization"], jsonKeys: ["token"], maxBodyBytes: 65536 }
+  redaction: { headers: ["authorization"], jsonKeys: ["token"], maxBodyBytes: 65536 },
+  sinks: [], baseDir: process.cwd()
 });
 
 test("proxy preserves the MCP response and records redacted events", async (t) => {

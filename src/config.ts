@@ -9,6 +9,10 @@ export interface ProxyConfig {
   dataDir: string;
   webBaseUrl: string;
   redaction: RedactionConfig;
+  /** Event sink modules (docs: README "Event sinks"). Relative paths resolve against baseDir. */
+  sinks: string[];
+  /** Directory sink paths resolve against: the config file's directory, or cwd. */
+  baseDir: string;
 }
 
 const defaults: ProxyConfig = {
@@ -22,7 +26,9 @@ const defaults: ProxyConfig = {
     headers: ["authorization", "cookie", "set-cookie", "x-api-key"],
     jsonKeys: ["token", "password", "secret", "apiKey", "authorization"],
     maxBodyBytes: 262144
-  }
+  },
+  sinks: [],
+  baseDir: ""
 };
 
 function merge(base: Record<string, unknown>, override: Record<string, unknown> | undefined): Record<string, unknown> {
@@ -47,9 +53,13 @@ export async function loadConfig(configPath = process.env.UNREAL_MCP_PROXY_CONFI
     listenPort: process.env.UNREAL_MCP_PROXY_PORT ? Number(process.env.UNREAL_MCP_PROXY_PORT) : undefined,
     upstreamUrl: process.env.UNREAL_MCP_UPSTREAM_URL,
     dataDir: process.env.UNREAL_MCP_PROXY_DATA_DIR,
-    webBaseUrl: process.env.UNREAL_MCP_PROXY_WEB_BASE_URL
+    webBaseUrl: process.env.UNREAL_MCP_PROXY_WEB_BASE_URL,
+    sinks: process.env.UNREAL_MCP_PROXY_SINKS
+      ? process.env.UNREAL_MCP_PROXY_SINKS.split(",").map((entry) => entry.trim()).filter(Boolean)
+      : undefined
   }) as unknown as ProxyConfig;
   config.dataDir = path.resolve(config.dataDir);
+  config.baseDir = configPath ? path.dirname(path.resolve(configPath)) : process.cwd();
   if (!config.webBaseUrl) config.webBaseUrl = `http://127.0.0.1:${config.listenPort}`;
   return config;
 }

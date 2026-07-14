@@ -120,7 +120,8 @@ test("status reports recorder reachability and recorded history, clear rolls the
   const proxy = createProxyServer({
     listenHost: "127.0.0.1", listenPort: 0, upstreamUrl: "http://127.0.0.1:1/mcp",
     dataDir, webBaseUrl: "http://observer.test",
-    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 }
+    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 },
+    sinks: [], baseDir: process.cwd()
   }, store);
   await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", () => resolve()));
   const port = (proxy.address() as { port: number }).port;
@@ -157,7 +158,8 @@ test("annotate posts to the running proxy and the annotation is recalled by simi
   const proxy = createProxyServer({
     listenHost: "127.0.0.1", listenPort: 0, upstreamUrl: "http://127.0.0.1:1/mcp",
     dataDir, webBaseUrl: "http://observer.test",
-    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 }
+    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 },
+    sinks: [], baseDir: process.cwd()
   }, store);
   await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", () => resolve()));
   const port = (proxy.address() as { port: number }).port;
