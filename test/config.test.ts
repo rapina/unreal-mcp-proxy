@@ -45,6 +45,23 @@ test("config file overrides defaults, environment overrides the file", async (t)
   assert.equal(config.webBaseUrl, "http://127.0.0.1:42000");      // derived from final port
 });
 
+test("missing config file warns and falls back to defaults", async (t) => {
+  withCleanEnv(t);
+  const missingPath = path.join(os.tmpdir(), "ump-config-missing", "does-not-exist.json");
+  const config = await loadConfig(missingPath);
+  assert.equal(config.listenPort, 35100);
+  assert.equal(config.upstreamUrl, "http://127.0.0.1:35000/mcp");
+  assert.deepEqual(config.sinks, []);
+});
+
+test("malformed config file still fails fast", async (t) => {
+  withCleanEnv(t);
+  const dir = await mkdtemp(path.join(os.tmpdir(), "ump-config-bad-"));
+  const configPath = path.join(dir, "config.json");
+  await writeFile(configPath, "{ not json", "utf8");
+  await assert.rejects(loadConfig(configPath), SyntaxError);
+});
+
 test("sinks come from config or env, and baseDir tracks the config file", async (t) => {
   withCleanEnv(t);
   const dir = await mkdtemp(path.join(os.tmpdir(), "ump-config-sinks-"));

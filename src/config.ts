@@ -47,7 +47,19 @@ function merge(base: Record<string, unknown>, override: Record<string, unknown> 
 export async function loadConfig(configPath = process.env.UNREAL_MCP_PROXY_CONFIG): Promise<ProxyConfig> {
   let config: ProxyConfig = defaults;
   if (configPath) {
-    config = merge(config as unknown as Record<string, unknown>, JSON.parse(await readFile(configPath, "utf8"))) as unknown as ProxyConfig;
+    // A missing file is a not-yet-set-up state (e.g. a fresh clone whose gitignored
+    // config was never created): warn and run on defaults so the proxy still works.
+    // Any other failure (unreadable file, malformed JSON) is a broken setup: fail fast.
+    let text: string | undefined;
+    try {
+      text = await readFile(configPath, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      process.stderr.write(`[unreal-mcp-proxy] config file not found: ${configPath} - continuing with defaults\n`);
+    }
+    if (text !== undefined) {
+      config = merge(config as unknown as Record<string, unknown>, JSON.parse(text)) as unknown as ProxyConfig;
+    }
   }
   config = merge(config as unknown as Record<string, unknown>, {
     listenHost: process.env.UNREAL_MCP_PROXY_HOST,
