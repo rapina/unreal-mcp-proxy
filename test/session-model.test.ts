@@ -104,6 +104,38 @@ test("attaches annotations to their call, latest per author", () => {
   assert.equal(call.annotations[0]!.title, "second");
 });
 
+test("associates calls with the most recent preceding intent", () => {
+  seq = 0;
+  const events = [
+    event("ai_intent", { intentId: "i1", text: "spawn zombies to test the swarm", tags: ["m3"], author: "agent" }),
+    ...callPair("c1", "find_actors"),
+    ...callPair("c2", "spawn_actor"),
+    event("ai_intent", { intentId: "i2", text: "save the level" }),
+    ...callPair("c3", "save_assets")
+  ];
+  const model = buildSessionModel("s-1", events, "http://x");
+  assert.equal(model.intents.length, 2);
+  assert.equal(model.intents[0]!.text, "spawn zombies to test the swarm");
+  assert.deepEqual(model.intents[0]!.tags, ["m3"]);
+  const byId = new Map(model.calls.map((call) => [call.id, call]));
+  assert.equal(byId.get("c1")!.intentId, "i1");
+  assert.equal(byId.get("c2")!.intentId, "i1");
+  assert.equal(byId.get("c3")!.intentId, "i2");
+});
+
+test("leaves calls before any intent unassigned", () => {
+  seq = 0;
+  const events = [
+    ...callPair("c1", "find_actors"),
+    event("ai_intent", { intentId: "i1", text: "later goal" }),
+    ...callPair("c2", "spawn_actor")
+  ];
+  const model = buildSessionModel("s-1", events, "http://x");
+  const byId = new Map(model.calls.map((call) => [call.id, call]));
+  assert.equal(byId.get("c1")!.intentId, undefined);
+  assert.equal(byId.get("c2")!.intentId, "i1");
+});
+
 test("normalizeError masks paths, uuids, hex and numbers", () => {
   const norm = normalizeError("Cannot remove 'D:\\proj\\A_1.uasset' (id 3f1c2e04-6a52-4b0f-9c66-8f6f6f0a1d2e) code 0xC0 after 12 tries")!;
   assert.ok(norm.includes("<path>"));

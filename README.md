@@ -12,6 +12,9 @@ the official debugging story is an output-log filter. This fills that gap.
 - **Session recording** - every `tools/call` with request/response bodies, timing, and
   errors, appended to plain JSONL. An observation session survives editor *and* proxy
   restarts; it only rolls over when you explicitly clear it.
+- **Intent grouping** - the agent can record the *goal* behind a batch of calls
+  (`query.mjs intent "..."`), so a flat call log becomes a narrative: each declared goal
+  heads the calls that served it, in the viewer and in the recorded JSONL.
 - **Offline viewer** - one self-contained `viewer.html`. Double-click it, drop a session
   file in, and you get a thread timeline, a tool-flow graph with call-order replay, and
   unwrapped request/response views (no `params.arguments.arguments` archaeology, no
@@ -199,14 +202,17 @@ Sink contract:
 Copy (or symlink) `skills/unreal-mcp-observer/` into your agent's skill directory
 (for Claude Code: `.claude/skills/`). The skill teaches the agent to:
 
-1. check `similar-failures` before retrying a failed Unreal tool call - past sessions may
+1. record an `intent` when starting a distinct piece of Unreal work, so the session is
+   grouped by goal and future sessions can recall how it was accomplished,
+2. check `similar-failures` before retrying a failed Unreal tool call - past sessions may
    have already recorded the root cause and fix (asset read-only under LFS locking, etc.),
-2. compare slow calls against recorded `tool-stats` baselines,
-3. `annotate` new diagnoses so they are recalled forever after.
+3. compare slow calls against recorded `tool-stats` baselines,
+4. `annotate` new diagnoses so they are recalled forever after.
 
 The query CLI also works standalone:
 
 ```bash
+node skills/unreal-mcp-observer/scripts/query.mjs intent "spawn a zombie horde to test the swarm AI"
 node skills/unreal-mcp-observer/scripts/query.mjs recent-failures
 node skills/unreal-mcp-observer/scripts/query.mjs similar-failures "as it is read only"
 ```
@@ -218,9 +224,10 @@ node skills/unreal-mcp-observer/scripts/query.mjs similar-failures "as it is rea
 | `POST /mcp` | Transparent MCP forwarding (this is what agents talk to) |
 | `GET /health` | Proxy + active session status |
 | `GET /api/session` · `POST /api/session/clear` | Active observation session |
-| `GET /api/sessions/{id}` | Session model (calls, graph, annotations) |
+| `GET /api/sessions/{id}` | Session model (calls, graph, intents, annotations) |
 | `GET /api/sessions/{id}/events` | Raw recorded events |
 | `GET /api/sessions/{id}/stream` | SSE change stream |
+| `POST /api/sessions/{id}/intents` | Record a goal that groups the calls after it |
 | `POST /api/sessions/{id}/annotations` | Attach a diagnosis to a call |
 | `GET /sessions/{id}` · `GET /viewer` | Viewer (served mode) |
 

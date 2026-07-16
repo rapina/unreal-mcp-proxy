@@ -53,6 +53,10 @@ main{max-width:1880px;margin:0 auto;padding:14px 20px 40px}
 .rows li.on{background:var(--acc);color:#0e0e13}
 .rows li.on .mut{color:#0e0e13}
 .rows .grow{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rows li.intent-head{cursor:default;background:var(--acc2);border-bottom:1px solid var(--line);border-top:1px solid var(--line);padding:7px 8px;font:700 11px var(--mono);letter-spacing:.02em;color:var(--acc);text-transform:none;white-space:normal}
+.rows li.intent-head:hover{background:var(--acc2)}
+.rows li.intent-head .grow{white-space:normal;overflow:visible;color:var(--tx)}
+.rows .intent-mark{flex:none;color:var(--acc);font-weight:700}
 .mut{color:var(--mut)}
 .num{font-variant-numeric:tabular-nums}
 

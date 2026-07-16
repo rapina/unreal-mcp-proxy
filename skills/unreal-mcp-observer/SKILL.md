@@ -1,6 +1,6 @@
 ---
 name: unreal-mcp-observer
-description: Query and operate the Unreal MCP session recorder (unreal-mcp-proxy). Use when an Unreal MCP tool call fails (check for past similar failures and their fixes first), when a call seems unusually slow, when the user asks what happened in an Unreal editor automation session, or when you need to share a deep link to a specific call, check recorder status, or start a fresh observation session. After diagnosing a failure, record the conclusion as an annotation so future sessions can recall it.
+description: Query and operate the Unreal MCP session recorder (unreal-mcp-proxy). When starting a distinct piece of Unreal editor work, record your goal as an intent so the recording is grouped by what you were trying to do. Use when an Unreal MCP tool call fails (check for past similar failures and their fixes first), when a call seems unusually slow, when the user asks what happened in an Unreal editor automation session, or when you need to share a deep link to a specific call, check recorder status, or start a fresh observation session. After diagnosing a failure, record the conclusion as an annotation so future sessions can recall it.
 ---
 
 # Unreal MCP Observer
@@ -19,6 +19,18 @@ Set `UNREAL_MCP_PROXY_DATA_DIR` if the proxy's data directory is not `./data`
 (it is printed at proxy startup). `UNREAL_MCP_PROXY_URL` defaults to `http://127.0.0.1:35100`.
 
 ## Workflow
+
+0. **Starting a distinct piece of Unreal work?** Record what you are about to do, once, before
+   the calls. Every Unreal MCP call after it is grouped under this goal in the session viewer,
+   turning a flat call log into a readable narrative - and future sessions can recall how the
+   goal was accomplished, not just how errors were fixed.
+
+   ```bash
+   node scripts/query.mjs intent "retarget the mocap FBX onto SKM_FanaZombie and preview it" --tags anim,m3
+   ```
+
+   Scope it to a *task*, not a call: one intent per goal you pursue, not one per tool call.
+   Keep it a short goal statement, and do not put secrets in the text.
 
 1. **An Unreal MCP tool call failed?** Before retrying or guessing, check history:
 
@@ -71,6 +83,7 @@ Set `UNREAL_MCP_PROXY_DATA_DIR` if the proxy's data directory is not `./data`
 
 | Command | Purpose |
 | --- | --- |
+| `intent <text> [--tags a,b] [--author a]` | Declare the goal behind the calls you are about to make; groups them in the viewer (requires the proxy to be running) |
 | `status` | Proxy health, active session + URL, and how many sessions/calls/failures are recorded |
 | `sessions [--limit N]` | Recorded sessions with call/failure counts and viewer URLs, newest first |
 | `link <callId>` | Deep link for one call - share it with a human (callId prefix is enough) |

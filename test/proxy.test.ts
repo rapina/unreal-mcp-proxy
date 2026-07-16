@@ -111,6 +111,39 @@ test("serves the session model API, annotations, and the viewer page", async (t)
   assert.equal(updated.calls[0]!.annotations[0]!.title, "Needs review");
 });
 
+test("records an intent and groups subsequent calls under it", async (t) => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-intent-"));
+  const store = new SessionStore(dataDir, "http://observer.test");
+  await store.initialize();
+  const proxy = createProxyServer(baseConfig(), store);
+  const port = await listen(proxy);
+  t.after(() => proxy.close());
+  const base = `http://127.0.0.1:${port}`;
+
+  const intentResponse = await fetch(`${base}/api/sessions/${store.session!.id}/intents`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text: "spawn zombies to test the swarm", tags: ["m3", "combat"] })
+  });
+  assert.equal(intentResponse.status, 201);
+
+  await store.append("mcp_request_started", { callId: "call-1", method: "POST", body: { method: "tools/call", params: { name: "call_tool", arguments: { toolset_name: "T.Scene", tool_name: "spawn_actor", arguments: {} } } } });
+  await store.append("mcp_request_completed", { callId: "call-1", status: 200, durationMs: 5, body: { result: { content: [{ text: "ok" }] } } });
+
+  const model = await (await fetch(`${base}/api/sessions/${store.session!.id}`)).json() as {
+    intents: Array<{ id: string; text: string; tags: string[] }>;
+    calls: Array<{ id: string; intentId?: string }>;
+  };
+  assert.equal(model.intents.length, 1);
+  assert.equal(model.intents[0]!.text, "spawn zombies to test the swarm");
+  assert.deepEqual(model.intents[0]!.tags, ["m3", "combat"]);
+  assert.equal(model.calls.find((call) => call.id === "call-1")!.intentId, model.intents[0]!.id);
+
+  const empty = await fetch(`${base}/api/sessions/${store.session!.id}/intents`, {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ tags: ["x"] })
+  });
+  assert.equal(empty.status, 400);
+});
+
 test("returns 503 for the viewer when it is not built", async (t) => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-noviewer-"));
   const store = new SessionStore(dataDir, "http://observer.test");

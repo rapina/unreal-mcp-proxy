@@ -221,6 +221,29 @@ export function createProxyServer(config: ProxyConfig, store: SessionStore, opti
         }
       }
     }
+    {
+      const match = pathname.match(/^\/api\/sessions\/([0-9a-f-]+)\/intents$/i);
+      if (match && request.method === "POST") {
+        try {
+          if (match[1] !== store.session?.id) return sendJson(response, 409, { error: "session_not_active" });
+          const intent = await readJson(request);
+          const text = typeof intent.text === "string" ? intent.text.trim() : "";
+          if (!text) return sendJson(response, 400, { error: "text is required" });
+          const tags = Array.isArray(intent.tags)
+            ? intent.tags.filter((tag): tag is string => typeof tag === "string").slice(0, 12)
+            : [];
+          const event = await store.append("ai_intent", {
+            intentId: randomUUID(),
+            text: text.slice(0, 2000),
+            tags,
+            author: intent.author ?? "agent"
+          });
+          return sendJson(response, 201, event);
+        } catch (error) {
+          return sendJson(response, 400, { error: (error as Error).message });
+        }
+      }
+    }
     if ((pathname === "/viewer" || /^\/sessions\/[0-9a-f-]+$/i.test(pathname)) && request.method === "GET") {
       return serveViewer(response);
     }

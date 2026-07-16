@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Zero-dependency query CLI over recorded unreal-mcp-proxy sessions.
-// Usage: node query.mjs <recent-failures|similar-failures|call-detail|tool-stats|annotate> [args]
+// Usage: node query.mjs <recent-failures|similar-failures|call-detail|tool-stats|intent|annotate> [args]
 // Env:   UNREAL_MCP_PROXY_DATA_DIR (default ./data), UNREAL_MCP_PROXY_URL (default http://127.0.0.1:35100)
 
 import { readdir, readFile } from "node:fs/promises";
@@ -203,6 +203,24 @@ switch (command) {
     out(await response.json());
     break;
   }
+  case "intent": {
+    // Declare the goal behind the Unreal calls you are about to make. Recorded into the
+    // session so the viewer groups the calls under it and future queries can recall the how-to.
+    const text = positional.join(" ");
+    if (!text) fail("usage: intent <goal text> [--tags a,b,c] [--author <a>]");
+    const session = await (await fetch(`${proxyUrl}/api/session`)).json();
+    const response = await fetch(`${proxyUrl}/api/sessions/${session.id}/intents`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        text,
+        tags: flags.tags ? flags.tags.split(",").map((tag) => tag.trim()).filter(Boolean) : [],
+        author: flags.author ?? "agent"
+      })
+    });
+    out({ status: response.status, ...(await response.json()) });
+    break;
+  }
   case "annotate": {
     const callId = positional[0];
     if (!callId || !flags.title || !flags.summary) {
@@ -221,5 +239,5 @@ switch (command) {
     break;
   }
   default:
-    fail("usage: query.mjs <status|sessions|link|clear|recent-failures|similar-failures|call-detail|tool-stats|annotate> [args] [--limit N]");
+    fail("usage: query.mjs <status|sessions|link|clear|intent|recent-failures|similar-failures|call-detail|tool-stats|annotate> [args] [--limit N]");
 }

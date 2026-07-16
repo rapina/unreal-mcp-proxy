@@ -55,10 +55,26 @@ export interface CallModel {
   operationId?: string;
   operationTitle?: string;
   operationStep?: string;
+  /** Id of the ai_intent that this call falls under (the most recent intent before it). */
+  intentId?: string;
   deepLink: string;
   annotations: AnnotationModel[];
   isSystem: boolean;
   performance?: CallPerformance;
+}
+
+/**
+ * An agent-declared goal recorded mid-session ("why I am about to make these calls").
+ * Every call whose sequence is >= this intent's (and < the next intent's) belongs to it,
+ * giving a flat call log a narrative structure: what the agent was trying to accomplish.
+ */
+export interface IntentModel {
+  id: string;
+  sequence: number;
+  timestamp: string;
+  text: string;
+  tags: string[];
+  author: string;
 }
 
 export interface CallTiming {
@@ -126,6 +142,7 @@ export interface SessionModel {
   };
   graph: FlowGraph;
   calls: CallModel[];
+  intents: IntentModel[];
   annotations: AnnotationModel[];
   rawEventCount: number;
 }

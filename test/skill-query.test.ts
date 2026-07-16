@@ -143,6 +143,31 @@ test("status reports recorder reachability and recorded history, clear rolls the
   assert.equal(down.proxy.ok, false); // degrades gracefully when the proxy is not running
 });
 
+test("intent posts to the running proxy and is recorded on the session", async (t) => {
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-skill-intent-"));
+  const store = new SessionStore(dataDir, "http://observer.test");
+  await store.initialize();
+  const proxy = createProxyServer({
+    listenHost: "127.0.0.1", listenPort: 0, upstreamUrl: "http://127.0.0.1:1/mcp",
+    dataDir, webBaseUrl: "http://observer.test",
+    redaction: { headers: [], jsonKeys: [], maxBodyBytes: 65536 },
+    sinks: [], baseDir: process.cwd()
+  }, store);
+  await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", () => resolve()));
+  const port = (proxy.address() as { port: number }).port;
+  t.after(() => proxy.close());
+
+  const result = await query(dataDir, [
+    "intent", "retarget the mocap and preview it", "--tags", "m3,anim"
+  ], `http://127.0.0.1:${port}`) as { status: number; type: string; intentId: string };
+  assert.equal(result.status, 201);
+  assert.equal(result.type, "ai_intent");
+
+  const recorded = (await store.readEvents()).find((event) => event.type === "ai_intent")!;
+  assert.equal(recorded.text, "retarget the mocap and preview it");
+  assert.deepEqual(recorded.tags, ["m3", "anim"]);
+});
+
 test("annotate posts to the running proxy and the annotation is recalled by similar-failures", async (t) => {
   const dataDir = await mkdtemp(path.join(os.tmpdir(), "ump-skill-live-"));
   const store = new SessionStore(dataDir, "http://observer.test");

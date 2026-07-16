@@ -96,7 +96,20 @@ function renderCalls(): void {
   const calls = [...chronological()].reverse();
   $("#calls-cnt").textContent = String(calls.length);
   $("#calls-empty").hidden = calls.length > 0;
+  const intentsById = new Map((model?.intents ?? []).map((intent) => [intent.id, intent]));
+  let lastIntentId: string | null | undefined = undefined;
   for (const call of calls) {
+    if (call.intentId !== lastIntentId) {
+      lastIntentId = call.intentId;
+      const intent = call.intentId ? intentsById.get(call.intentId) : null;
+      if (intent) {
+        const head = el("li", "intent-head");
+        head.append(el("span", "intent-mark", "▸"));
+        head.append(el("span", "grow", intent.text));
+        if (intent.tags.length) head.append(el("span", "badge run", intent.tags.join(" ")));
+        list.append(head);
+      }
+    }
     const item = el("li");
     if (call.id === focusCallId) item.classList.add("on");
     item.append(el("span", `knot ${outcomeState(call)}`));

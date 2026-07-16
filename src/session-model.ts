@@ -1,6 +1,6 @@
 import type {
   AnnotationModel, BodySummary, CallModel, CallOutcome, FlowEdge, FlowGraph, FlowNode,
-  JsonObject, JsonValue, SessionEvent, SessionModel
+  IntentModel, JsonObject, JsonValue, SessionEvent, SessionModel
 } from "./types.js";
 
 /**
@@ -159,11 +159,22 @@ export function buildSessionModel(
   const started = new Map<string, SessionEvent>();
   const completed = new Set<string>();
   const annotations: AnnotationModel[] = [];
+  const intents: IntentModel[] = [];
   const calls: CallModel[] = [];
   const base = webBaseUrl.replace(/\/$/, "");
 
   for (const event of events) {
     if (event.type === "mcp_request_started") started.set(event.callId as string, event);
+    if (event.type === "ai_intent") {
+      intents.push({
+        id: event.intentId as string,
+        sequence: event.sequence,
+        timestamp: event.timestamp,
+        text: event.text as string,
+        tags: Array.isArray(event.tags) ? (event.tags as string[]) : [],
+        author: (event.author as string) ?? "agent"
+      });
+    }
     if (event.type === "ai_annotation") {
       annotations.push({
         callId: event.callId as string,
@@ -274,6 +285,17 @@ export function buildSessionModel(
     call.annotations = [...latestByAuthor.values()];
   }
 
+  // Associate each call with the most recent intent declared before it (by sequence).
+  const intentsBySeq = [...intents].sort((a, b) => a.sequence - b.sequence);
+  for (const call of calls) {
+    let current: IntentModel | undefined;
+    for (const intent of intentsBySeq) {
+      if (intent.sequence <= call.sequence) current = intent;
+      else break;
+    }
+    if (current) call.intentId = current.id;
+  }
+
   const chronological = [...workCalls].sort((a, b) => a.sequence - b.sequence);
   return {
     id: sessionId,
@@ -292,6 +314,7 @@ export function buildSessionModel(
     },
     graph: buildFlowGraph(chronological),
     calls: calls.sort((a, b) => b.sequence - a.sequence),
+    intents: intentsBySeq,
     annotations,
     rawEventCount: events.length
   };
